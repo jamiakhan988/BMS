@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { AuthForm } from './components/Auth/AuthForm';
+import { BusinessSetup } from './components/Setup/BusinessSetup';
 import { Sidebar } from './components/Layout/Sidebar';
 import { Header } from './components/Layout/Header';
 import { DashboardOverview } from './components/Dashboard/DashboardOverview';
@@ -17,7 +19,7 @@ import { useBusiness } from './hooks/useBusiness';
 
 function App() {
   const { user, loading: authLoading, signUp, signIn } = useAuth();
-  const { business, loading: businessLoading } = useBusiness();
+  const { business, loading: businessLoading, needsSetup } = useBusiness();
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [showBranchForm, setShowBranchForm] = useState(false);
@@ -29,9 +31,8 @@ function App() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   const handleAuthSubmit = async (data: any) => {
-    setAuthError(null);
-    
     try {
+      setAuthError(null);
       if (authMode === 'signup') {
         const { error } = await signUp(
           data.email,
@@ -41,6 +42,9 @@ function App() {
         );
         if (error) {
           setAuthError(error.message);
+        } else {
+          // Don't automatically switch to signin, let the AuthForm handle it
+          return;
         }
       } else {
         const { error } = await signIn(data.email, data.password);
@@ -51,6 +55,11 @@ function App() {
     } catch (error: any) {
       setAuthError(error.message || 'An error occurred');
     }
+  };
+
+  const handleSetupComplete = () => {
+    // Refresh the business data
+    window.location.reload();
   };
 
   const getPageTitle = () => {
@@ -132,24 +141,35 @@ function App() {
 
   if (!user || !business) {
     return (
-      <div>
+      <>
         <AuthForm
           mode={authMode}
           onSubmit={handleAuthSubmit}
           loading={authLoading}
           onModeChange={setAuthMode}
         />
+        <Toaster position="top-right" />
         {authError && (
           <div className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
             {authError}
           </div>
         )}
-      </div>
+      </>
+    );
+  }
+
+  if (needsSetup) {
+    return (
+      <>
+        <BusinessSetup onComplete={handleSetupComplete} />
+        <Toaster position="top-right" />
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <>
+      <div className="min-h-screen bg-gray-100 flex">
       <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
       
       <div className="flex-1 flex flex-col">
@@ -202,6 +222,8 @@ function App() {
         />
       )}
     </div>
+      <Toaster position="top-right" />
+    </>
   );
 }
 

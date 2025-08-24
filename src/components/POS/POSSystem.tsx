@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Smartphone, Banknote, Search, X } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Smartphone, Banknote, Search, X, FileText, Printer } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../hooks/useBusiness';
+import { generateReceiptPDF } from '../Reports/PDFGenerator';
+import toast from 'react-hot-toast';
 
 interface Product {
   id: string;
@@ -241,12 +243,28 @@ export function POSSystem() {
       setShowReceipt(true);
       clearCart();
       fetchProducts(); // Refresh products to show updated stock
+      toast.success('Sale completed successfully!');
 
     } catch (error) {
       console.error('Error processing sale:', error);
-      alert('Failed to process sale');
+      toast.error('Failed to process sale');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const printReceipt = () => {
+    window.print();
+  };
+
+  const downloadReceiptPDF = async () => {
+    if (!lastSale) return;
+    
+    try {
+      await generateReceiptPDF(lastSale, business);
+      toast.success('Receipt PDF downloaded successfully!');
+    } catch (error) {
+      toast.error('Failed to generate receipt PDF');
     }
   };
 
@@ -575,10 +593,18 @@ export function POSSystem() {
 
             <div className="flex space-x-2 mt-6">
               <button
-                onClick={() => window.print()}
+                onClick={printReceipt}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
               >
-                Print Receipt
+                <Printer className="h-4 w-4 mr-2 inline" />
+                Print
+              </button>
+              <button
+                onClick={downloadReceiptPDF}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+              >
+                <FileText className="h-4 w-4 mr-2 inline" />
+                PDF
               </button>
               <button
                 onClick={() => setShowReceipt(false)}

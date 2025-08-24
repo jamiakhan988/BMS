@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Download, TrendingUp, TrendingDown, DollarSign, Package, Users, Building2 } from 'lucide-react';
+import { Calendar, Download, TrendingUp, TrendingDown, DollarSign, Package, Users, Building2, FileText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../hooks/useBusiness';
+import { generatePDFReport } from './PDFGenerator';
+import toast from 'react-hot-toast';
 
 interface SalesData {
   date: string;
@@ -208,7 +210,9 @@ export function ReportsAnalytics() {
 
   const exportReport = () => {
     const reportData = {
+      business,
       period: `${dateRange.start} to ${dateRange.end}`,
+      dateRange,
       summary,
       salesData,
       topProducts,
@@ -223,6 +227,23 @@ export function ReportsAnalytics() {
     a.download = `business-report-${dateRange.start}-to-${dateRange.end}.json`;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  const exportPDFReport = async () => {
+    try {
+      await generatePDFReport({
+        business,
+        dateRange,
+        summary,
+        salesData,
+        topProducts,
+        branchPerformance,
+        employeePerformance,
+      });
+      toast.success('PDF report generated successfully!');
+    } catch (error) {
+      toast.error('Failed to generate PDF report');
+    }
   };
 
   if (loading) {
@@ -267,7 +288,14 @@ export function ReportsAnalytics() {
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
           >
             <Download className="h-4 w-4" />
-            <span>Export</span>
+            <span>Export JSON</span>
+          </button>
+          <button
+            onClick={exportPDFReport}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+          >
+            <FileText className="h-4 w-4" />
+            <span>Export PDF</span>
           </button>
         </div>
       </div>

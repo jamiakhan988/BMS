@@ -69,12 +69,16 @@ export function BusinessSettings() {
     setMessage(null);
 
     try {
-      const { error } = await resetPassword(user.email);
+      // Use the actual domain instead of localhost
+      const redirectTo = window.location.origin + '/reset-password';
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: redirectTo
+      });
       
       if (error) {
         setMessage({ type: 'error', text: 'Failed to send password reset email' });
       } else {
-        setMessage({ type: 'success', text: 'Password reset email sent successfully' });
+        setMessage({ type: 'success', text: 'Password reset email sent successfully. Check your inbox.' });
         setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       }
     } catch (error) {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Users, Mail, Phone, MapPin, Calendar, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Mail, Phone, MapPin, Calendar, DollarSign, Eye } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../hooks/useBusiness';
+import { EmployeeProfile } from './EmployeeProfile';
 
 interface Employee {
   id: string;
@@ -38,6 +39,16 @@ export function EmployeeList({ onAddEmployee, onEditEmployee }: EmployeeListProp
   const [loading, setLoading] = useState(true);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [selectedRole, setSelectedRole] = useState<string>('');
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+
+  if (selectedEmployee) {
+    return (
+      <EmployeeProfile
+        employee={selectedEmployee}
+        onBack={() => setSelectedEmployee(null)}
+      />
+    );
+  }
 
   useEffect(() => {
     if (business) {
@@ -220,14 +231,23 @@ export function EmployeeList({ onAddEmployee, onEditEmployee }: EmployeeListProp
                 </div>
                 <div className="flex space-x-2">
                   <button
+                    onClick={() => setSelectedEmployee(employee)}
+                    className="text-green-600 hover:text-green-800 p-1"
+                    title="View Profile"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={() => onEditEmployee(employee)}
                     className="text-blue-600 hover:text-blue-800 p-1"
+                    title="Edit Employee"
                   >
                     <Edit className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteEmployee(employee.id)}
                     className="text-red-600 hover:text-red-800 p-1"
+                    title="Delete Employee"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Building2, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface AuthFormProps {
   mode: 'signin' | 'signup';
@@ -59,7 +60,15 @@ export function AuthForm({ mode, onSubmit, loading, onModeChange }: AuthFormProp
       return;
     }
 
-    await onSubmit(formData);
+    try {
+      await onSubmit(formData);
+      if (mode === 'signup') {
+        toast.success('Account created successfully! Please sign in.');
+        onModeChange('signin');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred');
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {

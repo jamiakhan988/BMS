@@ -1,7 +1,8 @@
 import React from 'react';
-import { Search, Bell, User } from 'lucide-react';
+import { Search, User } from 'lucide-react';
 import { useBusiness } from '../../hooks/useBusiness';
 import { useAuth } from '../../hooks/useAuth';
+import { NotificationCenter } from './NotificationCenter';
 
 interface HeaderProps {
   title: string;
@@ -9,7 +10,7 @@ interface HeaderProps {
 
 export function Header({ title }: HeaderProps) {
   const { business } = useBusiness();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
@@ -30,10 +31,7 @@ export function Header({ title }: HeaderProps) {
           />
         </div>
 
-        <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-        </button>
+        <NotificationCenter />
 
         <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
@@ -41,7 +39,7 @@ export function Header({ title }: HeaderProps) {
           </div>
           <div className="text-sm">
             <p className="font-medium text-gray-900">
-              {user?.user_metadata?.full_name || 'User'}
+              {userProfile?.full_name || user?.user_metadata?.full_name || 'User'}
             </p>
             <p className="text-gray-600">{user?.email}</p>
           </div>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, MapPin, Phone, User } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, Phone, User, BarChart3 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../hooks/useBusiness';
+import { BranchDashboard } from './BranchDashboard';
 
 interface Branch {
   id: string;
@@ -24,6 +25,16 @@ export function BranchList({ onAddBranch, onEditBranch }: BranchListProps) {
   const { business } = useBusiness();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+
+  if (selectedBranch) {
+    return (
+      <BranchDashboard
+        branch={selectedBranch}
+        onBack={() => setSelectedBranch(null)}
+      />
+    );
+  }
 
   useEffect(() => {
     if (business) {
@@ -131,14 +142,23 @@ export function BranchList({ onAddBranch, onEditBranch }: BranchListProps) {
                 <h3 className="text-xl font-semibold text-gray-900">{branch.name}</h3>
                 <div className="flex space-x-2">
                   <button
+                    onClick={() => setSelectedBranch(branch)}
+                    className="text-green-600 hover:text-green-800 p-1"
+                    title="View Dashboard"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={() => onEditBranch(branch)}
                     className="text-blue-600 hover:text-blue-800 p-1"
+                    title="Edit Branch"
                   >
                     <Edit className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteBranch(branch.id)}
                     className="text-red-600 hover:text-red-800 p-1"
+                    title="Delete Branch"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

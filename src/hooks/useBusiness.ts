@@ -18,6 +18,7 @@ export function useBusiness() {
   const { user } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsSetup, setNeedsSetup] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -32,16 +33,26 @@ export function useBusiness() {
     if (!user) return;
 
     try {
+      // First get user profile
+      const { data: userProfile } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (!userProfile) return;
+
       const { data, error } = await supabase
         .from('businesses')
         .select('*')
-        .eq('owner_id', user.id)
+        .eq('owner_id', userProfile.id)
         .single();
 
       if (error) {
         console.error('Error fetching business:', error);
       } else {
         setBusiness(data);
+        setNeedsSetup(!data.is_setup_complete);
       }
     } catch (error) {
       console.error('Error fetching business:', error);
@@ -70,6 +81,7 @@ export function useBusiness() {
   return {
     business,
     loading,
+    needsSetup,
     updateBusiness,
     refetch: fetchBusiness,
   };

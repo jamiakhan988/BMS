@@ -1,17 +1,22 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      }
       setLoading(false);
     });
 
@@ -20,6 +25,11 @@ export function useAuth() {
       (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        if (session?.user) {
+          fetchUserProfile(session.user.id);
+        } else {
+          setUserProfile(null);
+        }
         setLoading(false);
       }
     );
@@ -27,29 +37,78 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const fetchUserProfile = async (authUserId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('auth_user_id', authUserId)
+        .single();
+
+      if (!error && data) {
+        setUserProfile(data);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
   const signUp = async (email: string, password: string, fullName: string, businessName: string) => {
-    const { data, error } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
-          business_name: businessName,
         }
       }
     });
 
-    if (!error && data.user) {
-      // Create business record
-      await supabase
-        .from('businesses')
+    if (!authError && authData.user) {
+      // Create user profile
+      const { data: userData, error: userError } = await supabase
+        .from('users')
         .insert([
           {
-            owner_id: data.user.id,
-            name: businessName,
+            auth_user_id: authData.user.id,
+            full_name: fullName,
+            email: email,
+            is_business_owner: true,
           }
-        ]);
+        ])
+        .select()
+        .single();
+
+      if (!userError && userData) {
+        // Create business record
+        await supabase
+          .from('businesses')
+          .insert([
+            {
+              owner_id: userData.id,
+              name: businessName,
+              is_setup_complete: false,
+            }
+          ]);
+      }
+
+      return { data: authData, error: userError };
     }
+
+    return { data: authData, error: authError };
+  };
+
+  const completeBusinessSetup = async (businessData: any) => {
+    if (!userProfile) return { error: 'No user profile found' };
+
+    const { data, error } = await supabase
+        .from('businesses')
+        .update({
+          ...businessData,
+          is_setup_complete: true,
+        })
+        .eq('owner_id', userProfile.id)
+        .select()
+        .single();
 
     return { data, error };
   };
@@ -68,11 +127,13 @@ export function useAuth() {
 
   return {
     user,
+    userProfile,
     session,
     loading,
     signUp,
     signIn,
     signOut,
     resetPassword,
+    completeBusinessSetup,
   };
 }

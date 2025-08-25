@@ -16,6 +16,7 @@ import { ReportsAnalytics } from './components/Reports/ReportsAnalytics';
 import { BusinessSettings } from './components/Settings/BusinessSettings';
 import { useAuth } from './hooks/useAuth';
 import { useBusiness } from './hooks/useBusiness';
+import toast from 'react-hot-toast';
 
 function App() {
   const { user, loading: authLoading, signUp, signIn } = useAuth();
@@ -28,11 +29,9 @@ function App() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
 
   const handleAuthSubmit = async (data: any) => {
     try {
-      setAuthError(null);
       if (authMode === 'signup') {
         const { error } = await signUp(
           data.email,
@@ -41,24 +40,25 @@ function App() {
           data.businessName
         );
         if (error) {
-          setAuthError(error.message);
+          toast.error(error.message);
         } else {
-          // Don't automatically switch to signin, let the AuthForm handle it
-          return;
+          toast.success('Account created successfully! Please sign in.');
+          setAuthMode('signin');
         }
       } else {
         const { error } = await signIn(data.email, data.password);
         if (error) {
-          setAuthError(error.message);
+          toast.error(error.message);
+        } else {
+          toast.success('Welcome back!');
         }
       }
     } catch (error: any) {
-      setAuthError(error.message || 'An error occurred');
+      toast.error(error.message || 'An error occurred');
     }
   };
 
   const handleSetupComplete = () => {
-    // Refresh the business data
     window.location.reload();
   };
 
@@ -139,7 +139,7 @@ function App() {
     );
   }
 
-  if (!user || !business) {
+  if (!user) {
     return (
       <>
         <AuthForm
@@ -149,11 +149,6 @@ function App() {
           onModeChange={setAuthMode}
         />
         <Toaster position="top-right" />
-        {authError && (
-          <div className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
-            {authError}
-          </div>
-        )}
       </>
     );
   }
@@ -170,58 +165,58 @@ function App() {
   return (
     <>
       <div className="min-h-screen bg-gray-100 flex">
-      <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
-      
-      <div className="flex-1 flex flex-col">
-        <Header title={getPageTitle()} />
+        <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
         
-        <main className="flex-1 p-6 overflow-auto">
-          {renderCurrentPage()}
-        </main>
+        <div className="flex-1 flex flex-col">
+          <Header title={getPageTitle()} />
+          
+          <main className="flex-1 p-6 overflow-auto">
+            {renderCurrentPage()}
+          </main>
+        </div>
+
+        {showBranchForm && (
+          <BranchForm
+            branch={editingBranch}
+            onClose={() => {
+              setShowBranchForm(false);
+              setEditingBranch(null);
+            }}
+            onSave={() => {
+              setShowBranchForm(false);
+              setEditingBranch(null);
+            }}
+          />
+        )}
+
+        {showProductForm && (
+          <ProductForm
+            product={editingProduct}
+            onClose={() => {
+              setShowProductForm(false);
+              setEditingProduct(null);
+            }}
+            onSave={() => {
+              setShowProductForm(false);
+              setEditingProduct(null);
+            }}
+          />
+        )}
+
+        {showEmployeeForm && (
+          <EmployeeForm
+            employee={editingEmployee}
+            onClose={() => {
+              setShowEmployeeForm(false);
+              setEditingEmployee(null);
+            }}
+            onSave={() => {
+              setShowEmployeeForm(false);
+              setEditingEmployee(null);
+            }}
+          />
+        )}
       </div>
-
-      {showBranchForm && (
-        <BranchForm
-          branch={editingBranch}
-          onClose={() => {
-            setShowBranchForm(false);
-            setEditingBranch(null);
-          }}
-          onSave={() => {
-            setShowBranchForm(false);
-            setEditingBranch(null);
-          }}
-        />
-      )}
-
-      {showProductForm && (
-        <ProductForm
-          product={editingProduct}
-          onClose={() => {
-            setShowProductForm(false);
-            setEditingProduct(null);
-          }}
-          onSave={() => {
-            setShowProductForm(false);
-            setEditingProduct(null);
-          }}
-        />
-      )}
-
-      {showEmployeeForm && (
-        <EmployeeForm
-          employee={editingEmployee}
-          onClose={() => {
-            setShowEmployeeForm(false);
-            setEditingEmployee(null);
-          }}
-          onSave={() => {
-            setShowEmployeeForm(false);
-            setEditingEmployee(null);
-          }}
-        />
-      )}
-    </div>
       <Toaster position="top-right" />
     </>
   );

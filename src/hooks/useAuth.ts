@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -22,11 +21,11 @@ export function useAuth() {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          fetchUserProfile(session.user.id);
+          await fetchUserProfile(session.user.id);
         } else {
           setUserProfile(null);
         }
@@ -52,55 +51,93 @@ export function useAuth() {
       console.error('Error fetching user profile:', error);
     }
   };
+
   const signUp = async (email: string, password: string, fullName: string, businessName: string) => {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        }
-      }
-    });
-
-    if (!authError && authData.user) {
-      // Create user profile
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .insert([
-          {
-            auth_user_id: authData.user.id,
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
             full_name: fullName,
-            email: email,
-            is_business_owner: true,
           }
-        ])
-        .select()
-        .single();
+        }
+      });
 
-      if (!userError && userData) {
-        // Create business record
-        await supabase
-          .from('businesses')
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // Create user profile
+        const { data: userData, error: userError } = await supabase
+          .from('users')
           .insert([
             {
-              owner_id: userData.id,
-              name: businessName,
-              is_setup_complete: false,
+              auth_user_id: authData.user.id,
+              full_name: fullName,
+              email: email,
+              is_business_owner: true,
             }
-          ]);
+          ])
+          .select()
+          .single();
+
+        if (userError) throw userError;
+
+        if (userData) {
+          // Create business record
+          const { error: businessError } = await supabase
+            .from('businesses')
+            .insert([
+              {
+                owner_id: userData.id,
+                name: businessName,
+                is_setup_complete: false,
+              }
+            ]);
+
+          if (businessError) throw businessError;
+        }
       }
 
-      return { data: authData, error: userError };
+      return { data: authData, error: null };
+    } catch (error: any) {
+      return { data: null, error };
     }
+  };
 
-    return { data: authData, error: authError };
+  const signIn = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+      return { data, error };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (!error) {
+      setUser(null);
+      setSession(null);
+      setUserProfile(null);
+    }
+    return { error };
+  };
+
+  const resetPassword = async (email: string) => {
+    return await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    });
   };
 
   const completeBusinessSetup = async (businessData: any) => {
     if (!userProfile) return { error: 'No user profile found' };
 
-    const { data, error } = await supabase
+    try {
+      const { data, error } = await supabase
         .from('businesses')
         .update({
           ...businessData,
@@ -110,19 +147,10 @@ export function useAuth() {
         .select()
         .single();
 
-    return { data, error };
-  };
-
-  const signIn = async (email: string, password: string) => {
-    return await supabase.auth.signInWithPassword({ email, password });
-  };
-
-  const signOut = async () => {
-    return await supabase.auth.signOut();
-  };
-
-  const resetPassword = async (email: string) => {
-    return await supabase.auth.resetPasswordForEmail(email);
+      return { data, error };
+    } catch (error: any) {
+      return { data: null, error };
+    }
   };
 
   return {

@@ -18,6 +18,7 @@ export function AuthForm({ mode, onSubmit, loading, onModeChange }: AuthFormProp
     confirmPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = () => {
@@ -36,15 +37,17 @@ export function AuthForm({ mode, onSubmit, loading, onModeChange }: AuthFormProp
     }
 
     if (mode === 'signup') {
-      if (!formData.fullName) {
+      if (!formData.fullName.trim()) {
         newErrors.fullName = 'Full name is required';
       }
 
-      if (!formData.businessName) {
+      if (!formData.businessName.trim()) {
         newErrors.businessName = 'Business name is required';
       }
 
-      if (formData.password !== formData.confirmPassword) {
+      if (!formData.confirmPassword) {
+        newErrors.confirmPassword = 'Please confirm your password';
+      } else if (formData.password !== formData.confirmPassword) {
         newErrors.confirmPassword = 'Passwords do not match';
       }
     }
@@ -62,10 +65,6 @@ export function AuthForm({ mode, onSubmit, loading, onModeChange }: AuthFormProp
 
     try {
       await onSubmit(formData);
-      if (mode === 'signup') {
-        toast.success('Account created successfully! Please sign in.');
-        onModeChange('signin');
-      }
     } catch (error: any) {
       toast.error(error.message || 'An error occurred');
     }
@@ -98,7 +97,7 @@ export function AuthForm({ mode, onSubmit, loading, onModeChange }: AuthFormProp
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
+                  Full Name *
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -119,7 +118,7 @@ export function AuthForm({ mode, onSubmit, loading, onModeChange }: AuthFormProp
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Business Name
+                  Business Name *
                 </label>
                 <div className="relative">
                   <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -142,7 +141,7 @@ export function AuthForm({ mode, onSubmit, loading, onModeChange }: AuthFormProp
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
+              Email Address *
             </label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -163,7 +162,7 @@ export function AuthForm({ mode, onSubmit, loading, onModeChange }: AuthFormProp
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
+              Password *
             </label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -192,19 +191,26 @@ export function AuthForm({ mode, onSubmit, loading, onModeChange }: AuthFormProp
           {mode === 'signup' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Confirm Password
+                Confirm Password *
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={formData.confirmPassword}
                   onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                  className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                  className={`w-full pl-10 pr-12 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                     errors.confirmPassword ? 'border-red-300' : 'border-gray-200'
                   }`}
                   placeholder="Confirm your password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
               {errors.confirmPassword && (
                 <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
@@ -234,6 +240,7 @@ export function AuthForm({ mode, onSubmit, loading, onModeChange }: AuthFormProp
             <button
               onClick={() => onModeChange(mode === 'signin' ? 'signup' : 'signin')}
               className="text-blue-600 hover:text-blue-700 font-semibold"
+              disabled={loading}
             >
               {mode === 'signin' ? 'Sign Up' : 'Sign In'}
             </button>

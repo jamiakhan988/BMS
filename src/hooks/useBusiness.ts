@@ -1,86 +1,44 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
 
 export interface Business {
   id: string;
-  owner_id: string;
   name: string;
-  logo: string | null;
-  address: string | null;
-  phone: string | null;
-  email: string | null;
-  website: string | null;
-  tax_number: string | null;
-  currency: string;
-  timezone: string;
-  is_setup_complete: boolean;
+  owner_name: string;
   created_at: string;
-  updated_at: string;
 }
 
 export function useBusiness() {
-  const { user, userProfile } = useAuth();
+  const { user } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
 
   useEffect(() => {
-    if (userProfile) {
-      fetchBusiness();
-    } else if (user && !userProfile) {
-      // Wait for user profile to load
-      setLoading(true);
+    if (user) {
+      // Create a mock business from user data
+      const mockBusiness: Business = {
+        id: user.id,
+        name: user.user_metadata?.business_name || 'My Business',
+        owner_name: user.user_metadata?.full_name || 'Business Owner',
+        created_at: user.created_at || new Date().toISOString()
+      };
+      
+      setBusiness(mockBusiness);
+      setNeedsSetup(false);
+      setLoading(false);
     } else {
       setBusiness(null);
+      setNeedsSetup(false);
       setLoading(false);
     }
-  }, [user, userProfile]);
-
-  const fetchBusiness = async () => {
-    if (!userProfile) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('businesses')
-        .select('*')
-        .eq('owner_id', userProfile.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching business:', error);
-        setNeedsSetup(true);
-      } else if (data) {
-        setBusiness(data);
-        setNeedsSetup(!data.is_setup_complete);
-      }
-    } catch (error) {
-      console.error('Error fetching business:', error);
-      setNeedsSetup(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [user]);
 
   const updateBusiness = async (updates: Partial<Business>) => {
-    if (!business) return { error: 'No business found' };
-
-    try {
-      const { data, error } = await supabase
-        .from('businesses')
-        .update(updates)
-        .eq('id', business.id)
-        .select()
-        .single();
-
-      if (!error && data) {
-        setBusiness(data);
-      }
-
-      return { data, error };
-    } catch (error: any) {
-      return { data: null, error };
+    if (business) {
+      setBusiness({ ...business, ...updates });
     }
+    return { data: business, error: null };
   };
 
   return {
@@ -88,6 +46,6 @@ export function useBusiness() {
     loading,
     needsSetup,
     updateBusiness,
-    refetch: fetchBusiness,
+    refetch: () => {},
   };
 }

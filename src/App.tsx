@@ -1,34 +1,18 @@
 import React, { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthForm } from './components/Auth/AuthForm';
-import { BusinessSetup } from './components/Setup/BusinessSetup';
 import { Sidebar } from './components/Layout/Sidebar';
 import { Header } from './components/Layout/Header';
 import { DashboardOverview } from './components/Dashboard/DashboardOverview';
-import { BranchList } from './components/Branches/BranchList';
-import { BranchForm } from './components/Branches/BranchForm';
-import { POSSystem } from './components/POS/POSSystem';
-import { InventoryList } from './components/Inventory/InventoryList';
-import { ProductForm } from './components/Inventory/ProductForm';
-import { EmployeeList } from './components/Employees/EmployeeList';
-import { EmployeeForm } from './components/Employees/EmployeeForm';
-import { ReportsAnalytics } from './components/Reports/ReportsAnalytics';
-import { BusinessSettings } from './components/Settings/BusinessSettings';
 import { useAuth } from './hooks/useAuth';
 import { useBusiness } from './hooks/useBusiness';
 import toast from 'react-hot-toast';
 
 function App() {
   const { user, loading: authLoading, signUp, signIn } = useAuth();
-  const { business, loading: businessLoading, needsSetup } = useBusiness();
+  const { business } = useBusiness();
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [currentPage, setCurrentPage] = useState('dashboard');
-  const [showBranchForm, setShowBranchForm] = useState(false);
-  const [editingBranch, setEditingBranch] = useState<any>(null);
-  const [showProductForm, setShowProductForm] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [showEmployeeForm, setShowEmployeeForm] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<any>(null);
 
   const handleAuthSubmit = async (data: any) => {
     try {
@@ -58,10 +42,6 @@ function App() {
     }
   };
 
-  const handleSetupComplete = () => {
-    window.location.reload();
-  };
-
   const getPageTitle = () => {
     switch (currentPage) {
       case 'dashboard':
@@ -89,46 +69,53 @@ function App() {
         return <DashboardOverview />;
       case 'branches':
         return (
-          <BranchList
-            onAddBranch={() => setShowBranchForm(true)}
-            onEditBranch={(branch) => {
-              setEditingBranch(branch);
-              setShowBranchForm(true);
-            }}
-          />
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Branches</h2>
+            <p className="text-gray-600">Branch management coming soon!</p>
+          </div>
         );
       case 'pos':
-        return <POSSystem />;
+        return (
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Point of Sale</h2>
+            <p className="text-gray-600">POS system coming soon!</p>
+          </div>
+        );
       case 'inventory':
         return (
-          <InventoryList
-            onAddProduct={() => setShowProductForm(true)}
-            onEditProduct={(product) => {
-              setEditingProduct(product);
-              setShowProductForm(true);
-            }}
-          />
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Inventory</h2>
+            <p className="text-gray-600">Inventory management coming soon!</p>
+          </div>
         );
       case 'employees':
         return (
-          <EmployeeList
-            onAddEmployee={() => setShowEmployeeForm(true)}
-            onEditEmployee={(employee) => {
-              setEditingEmployee(employee);
-              setShowEmployeeForm(true);
-            }}
-          />
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Employees</h2>
+            <p className="text-gray-600">Employee management coming soon!</p>
+          </div>
         );
       case 'reports':
-        return <ReportsAnalytics />;
+        return (
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Reports</h2>
+            <p className="text-gray-600">Reports and analytics coming soon!</p>
+          </div>
+        );
       case 'settings':
-        return <BusinessSettings />;
+        return (
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Settings</h2>
+            <p className="text-gray-600">Settings coming soon!</p>
+          </div>
+        );
       default:
         return <DashboardOverview />;
     }
   };
 
-  if (authLoading || businessLoading) {
+  // Show loading only if actually loading
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
@@ -139,6 +126,7 @@ function App() {
     );
   }
 
+  // Show auth form if not logged in
   if (!user) {
     return (
       <>
@@ -153,15 +141,7 @@ function App() {
     );
   }
 
-  if (needsSetup) {
-    return (
-      <>
-        <BusinessSetup onComplete={handleSetupComplete} />
-        <Toaster position="top-right" />
-      </>
-    );
-  }
-
+  // Show main app if logged in
   return (
     <>
       <div className="min-h-screen bg-gray-100 flex">
@@ -174,48 +154,6 @@ function App() {
             {renderCurrentPage()}
           </main>
         </div>
-
-        {showBranchForm && (
-          <BranchForm
-            branch={editingBranch}
-            onClose={() => {
-              setShowBranchForm(false);
-              setEditingBranch(null);
-            }}
-            onSave={() => {
-              setShowBranchForm(false);
-              setEditingBranch(null);
-            }}
-          />
-        )}
-
-        {showProductForm && (
-          <ProductForm
-            product={editingProduct}
-            onClose={() => {
-              setShowProductForm(false);
-              setEditingProduct(null);
-            }}
-            onSave={() => {
-              setShowProductForm(false);
-              setEditingProduct(null);
-            }}
-          />
-        )}
-
-        {showEmployeeForm && (
-          <EmployeeForm
-            employee={editingEmployee}
-            onClose={() => {
-              setShowEmployeeForm(false);
-              setEditingEmployee(null);
-            }}
-            onSave={() => {
-              setShowEmployeeForm(false);
-              setEditingEmployee(null);
-            }}
-          />
-        )}
       </div>
       <Toaster position="top-right" />
     </>

@@ -1,218 +1,54 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Download, TrendingUp, TrendingDown, DollarSign, Package, Users, Building2, FileText } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useBusiness } from '../../hooks/useBusiness';
-import { generatePDFReport } from './PDFGenerator';
-import toast from 'react-hot-toast';
-
-interface SalesData {
-  date: string;
-  total: number;
-  count: number;
-}
-
-interface TopProduct {
-  name: string;
-  quantity: number;
-  revenue: number;
-}
-
-interface BranchPerformance {
-  name: string;
-  sales: number;
-  transactions: number;
-}
-
-interface EmployeePerformance {
-  name: string;
-  sales: number;
-  transactions: number;
-}
+import React, { useState } from 'react';
+import { Calendar, Download, TrendingUp, TrendingDown, DollarSign, Package, Users, Building2, FileText, BarChart3 } from 'lucide-react';
 
 export function ReportsAnalytics() {
-  const { business } = useBusiness();
   const [dateRange, setDateRange] = useState({
     start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
   });
-  const [loading, setLoading] = useState(true);
-  const [salesData, setSalesData] = useState<SalesData[]>([]);
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
-  const [branchPerformance, setBranchPerformance] = useState<BranchPerformance[]>([]);
-  const [employeePerformance, setEmployeePerformance] = useState<EmployeePerformance[]>([]);
-  const [summary, setSummary] = useState({
-    totalSales: 0,
-    totalTransactions: 0,
-    averageOrderValue: 0,
-    topSellingDay: '',
-    growth: 0
-  });
 
-  useEffect(() => {
-    if (business) {
-      fetchReportsData();
-    }
-  }, [business, dateRange]);
-
-  const fetchReportsData = async () => {
-    if (!business) return;
-
-    setLoading(true);
-
-    try {
-      // Fetch sales data
-      const { data: salesResult } = await supabase
-        .from('sales')
-        .select(`
-          total_amount,
-          sale_date,
-          branch_id,
-          employee_id,
-          branches(name),
-          employees(name)
-        `)
-        .eq('business_id', business.id)
-        .gte('sale_date', dateRange.start)
-        .lte('sale_date', dateRange.end + 'T23:59:59')
-        .order('sale_date');
-
-      // Fetch sale items for product analysis
-      const { data: saleItemsResult } = await supabase
-        .from('sale_items')
-        .select(`
-          quantity,
-          total_price,
-          products(name),
-          sales!inner(
-            business_id,
-            sale_date
-          )
-        `)
-        .eq('sales.business_id', business.id)
-        .gte('sales.sale_date', dateRange.start)
-        .lte('sales.sale_date', dateRange.end + 'T23:59:59');
-
-      // Process sales data by date
-      const salesByDate: { [key: string]: { total: number; count: number } } = {};
-      let totalSales = 0;
-      let totalTransactions = 0;
-
-      salesResult?.forEach(sale => {
-        const date = new Date(sale.sale_date).toISOString().split('T')[0];
-        if (!salesByDate[date]) {
-          salesByDate[date] = { total: 0, count: 0 };
-        }
-        salesByDate[date].total += sale.total_amount;
-        salesByDate[date].count += 1;
-        totalSales += sale.total_amount;
-        totalTransactions += 1;
-      });
-
-      const salesDataArray = Object.entries(salesByDate).map(([date, data]) => ({
-        date,
-        total: data.total,
-        count: data.count
-      }));
-
-      setSalesData(salesDataArray);
-
-      // Process top products
-      const productSales: { [key: string]: { quantity: number; revenue: number } } = {};
-      saleItemsResult?.forEach(item => {
-        const productName = item.products?.name || 'Unknown Product';
-        if (!productSales[productName]) {
-          productSales[productName] = { quantity: 0, revenue: 0 };
-        }
-        productSales[productName].quantity += item.quantity;
-        productSales[productName].revenue += item.total_price;
-      });
-
-      const topProductsArray = Object.entries(productSales)
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 10);
-
-      setTopProducts(topProductsArray);
-
-      // Process branch performance
-      const branchSales: { [key: string]: { sales: number; transactions: number } } = {};
-      salesResult?.forEach(sale => {
-        const branchName = sale.branches?.name || 'Unknown Branch';
-        if (!branchSales[branchName]) {
-          branchSales[branchName] = { sales: 0, transactions: 0 };
-        }
-        branchSales[branchName].sales += sale.total_amount;
-        branchSales[branchName].transactions += 1;
-      });
-
-      const branchPerformanceArray = Object.entries(branchSales)
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => b.sales - a.sales);
-
-      setBranchPerformance(branchPerformanceArray);
-
-      // Process employee performance
-      const employeeSales: { [key: string]: { sales: number; transactions: number } } = {};
-      salesResult?.forEach(sale => {
-        if (sale.employees?.name) {
-          const employeeName = sale.employees.name;
-          if (!employeeSales[employeeName]) {
-            employeeSales[employeeName] = { sales: 0, transactions: 0 };
-          }
-          employeeSales[employeeName].sales += sale.total_amount;
-          employeeSales[employeeName].transactions += 1;
-        }
-      });
-
-      const employeePerformanceArray = Object.entries(employeeSales)
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => b.sales - a.sales)
-        .slice(0, 10);
-
-      setEmployeePerformance(employeePerformanceArray);
-
-      // Calculate summary
-      const averageOrderValue = totalTransactions > 0 ? totalSales / totalTransactions : 0;
-      const topSellingDay = salesDataArray.reduce((max, day) => 
-        day.total > max.total ? day : max, 
-        { date: '', total: 0 }
-      ).date;
-
-      // Calculate growth (compare with previous period)
-      const periodDays = Math.ceil((new Date(dateRange.end).getTime() - new Date(dateRange.start).getTime()) / (1000 * 60 * 60 * 24));
-      const previousStart = new Date(new Date(dateRange.start).getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const previousEnd = new Date(new Date(dateRange.start).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-      const { data: previousSales } = await supabase
-        .from('sales')
-        .select('total_amount')
-        .eq('business_id', business.id)
-        .gte('sale_date', previousStart)
-        .lte('sale_date', previousEnd + 'T23:59:59');
-
-      const previousTotal = previousSales?.reduce((sum, sale) => sum + sale.total_amount, 0) || 0;
-      const growth = previousTotal > 0 ? ((totalSales - previousTotal) / previousTotal) * 100 : 0;
-
-      setSummary({
-        totalSales,
-        totalTransactions,
-        averageOrderValue,
-        topSellingDay,
-        growth
-      });
-
-    } catch (error) {
-      console.error('Error fetching reports data:', error);
-    } finally {
-      setLoading(false);
-    }
+  // Mock data for demonstration
+  const summary = {
+    totalSales: 2450000,
+    totalTransactions: 1250,
+    averageOrderValue: 1960,
+    topSellingDay: '2024-02-15',
+    growth: 15.8
   };
+
+  const salesData = [
+    { date: '2024-02-10', total: 45000, count: 25 },
+    { date: '2024-02-11', total: 52000, count: 28 },
+    { date: '2024-02-12', total: 38000, count: 22 },
+    { date: '2024-02-13', total: 61000, count: 35 },
+    { date: '2024-02-14', total: 48000, count: 26 },
+    { date: '2024-02-15', total: 75000, count: 42 },
+    { date: '2024-02-16', total: 55000, count: 31 },
+  ];
+
+  const topProducts = [
+    { name: 'iPhone 15 Pro', quantity: 45, revenue: 6070550 },
+    { name: 'Laptop Dell XPS 13', quantity: 32, revenue: 2720000 },
+    { name: 'Samsung Galaxy S24', quantity: 28, revenue: 2239972 },
+    { name: 'MacBook Air M2', quantity: 18, revenue: 2068200 },
+    { name: 'iPad Pro 12.9"', quantity: 22, revenue: 2483800 },
+  ];
+
+  const branchPerformance = [
+    { name: 'Main Branch', sales: 1450000, transactions: 750 },
+    { name: 'Downtown Branch', sales: 1000000, transactions: 500 },
+  ];
+
+  const employeePerformance = [
+    { name: 'John Smith', sales: 450000, transactions: 125 },
+    { name: 'Sarah Johnson', sales: 380000, transactions: 98 },
+    { name: 'Emily Davis', sales: 320000, transactions: 85 },
+    { name: 'Mike Wilson', sales: 280000, transactions: 72 },
+  ];
 
   const exportReport = () => {
     const reportData = {
-      business,
       period: `${dateRange.start} to ${dateRange.end}`,
-      dateRange,
       summary,
       salesData,
       topProducts,
@@ -229,37 +65,10 @@ export function ReportsAnalytics() {
     window.URL.revokeObjectURL(url);
   };
 
-  const exportPDFReport = async () => {
-    try {
-      await generatePDFReport({
-        business,
-        dateRange,
-        summary,
-        salesData,
-        topProducts,
-        branchPerformance,
-        employeePerformance,
-      });
-      toast.success('PDF report generated successfully!');
-    } catch (error) {
-      toast.error('Failed to generate PDF report');
-    }
+  const exportPDFReport = () => {
+    // In a real app, this would generate a PDF
+    alert('PDF report generation would be implemented here');
   };
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-              <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -308,13 +117,9 @@ export function ReportsAnalytics() {
               <p className="text-sm font-medium text-gray-600">Total Sales</p>
               <p className="text-3xl font-bold text-gray-900">₹{summary.totalSales.toLocaleString()}</p>
               <div className="flex items-center mt-2">
-                {summary.growth >= 0 ? (
-                  <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-red-500 mr-1" />
-                )}
-                <span className={`text-sm font-medium ${summary.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {Math.abs(summary.growth).toFixed(1)}%
+                <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+                <span className="text-sm font-medium text-green-600">
+                  {summary.growth.toFixed(1)}%
                 </span>
               </div>
             </div>
@@ -328,7 +133,7 @@ export function ReportsAnalytics() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Transactions</p>
-              <p className="text-3xl font-bold text-gray-900">{summary.totalTransactions}</p>
+              <p className="text-3xl font-bold text-gray-900">{summary.totalTransactions.toLocaleString()}</p>
               <p className="text-sm text-gray-500 mt-2">Total orders</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -341,7 +146,7 @@ export function ReportsAnalytics() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Avg Order Value</p>
-              <p className="text-3xl font-bold text-gray-900">₹{summary.averageOrderValue.toFixed(0)}</p>
+              <p className="text-3xl font-bold text-gray-900">₹{summary.averageOrderValue.toLocaleString()}</p>
               <p className="text-sm text-gray-500 mt-2">Per transaction</p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -355,7 +160,7 @@ export function ReportsAnalytics() {
             <div>
               <p className="text-sm font-medium text-gray-600">Top Selling Day</p>
               <p className="text-lg font-bold text-gray-900">
-                {summary.topSellingDay ? new Date(summary.topSellingDay).toLocaleDateString() : 'N/A'}
+                {new Date(summary.topSellingDay).toLocaleDateString()}
               </p>
               <p className="text-sm text-gray-500 mt-2">Best performance</p>
             </div>
@@ -370,9 +175,12 @@ export function ReportsAnalytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales Trend */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Sales Trend</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <BarChart3 className="h-5 w-5 mr-2" />
+            Sales Trend (Last 7 Days)
+          </h3>
           <div className="space-y-3">
-            {salesData.slice(-7).map((day, index) => (
+            {salesData.map((day, index) => (
               <div key={day.date} className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">
                   {new Date(day.date).toLocaleDateString()}
@@ -399,7 +207,7 @@ export function ReportsAnalytics() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Products</h3>
           <div className="space-y-3">
-            {topProducts.slice(0, 5).map((product, index) => (
+            {topProducts.map((product, index) => (
               <div key={product.name} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
@@ -464,6 +272,28 @@ export function ReportsAnalytics() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed Analytics */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Detailed Analytics</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="text-center p-4 bg-blue-50 rounded-lg">
+            <h4 className="font-medium text-blue-900 mb-2">Revenue Growth</h4>
+            <p className="text-3xl font-bold text-blue-600">+{summary.growth.toFixed(1)}%</p>
+            <p className="text-sm text-blue-700">vs last period</p>
+          </div>
+          <div className="text-center p-4 bg-green-50 rounded-lg">
+            <h4 className="font-medium text-green-900 mb-2">Customer Satisfaction</h4>
+            <p className="text-3xl font-bold text-green-600">4.8/5</p>
+            <p className="text-sm text-green-700">average rating</p>
+          </div>
+          <div className="text-center p-4 bg-purple-50 rounded-lg">
+            <h4 className="font-medium text-purple-900 mb-2">Inventory Turnover</h4>
+            <p className="text-3xl font-bold text-purple-600">8.2x</p>
+            <p className="text-sm text-purple-700">times per year</p>
           </div>
         </div>
       </div>

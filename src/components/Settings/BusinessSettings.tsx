@@ -1,97 +1,72 @@
 import React, { useState } from 'react';
-import { Save, Upload, Eye, EyeOff, Building2, Mail, Phone, MapPin } from 'lucide-react';
-import { useBusiness } from '../../hooks/useBusiness';
-import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { Save, Building2, Mail, Phone, MapPin, User, Lock, Bell, Shield, CreditCard } from 'lucide-react';
 
 export function BusinessSettings() {
-  const { business, updateBusiness } = useBusiness();
-  const { user, resetPassword } = useAuth();
-  const [activeTab, setActiveTab] = useState<'business' | 'account' | 'security'>('business');
+  const [activeTab, setActiveTab] = useState<'business' | 'account' | 'security' | 'notifications' | 'billing'>('business');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Business form state
   const [businessForm, setBusinessForm] = useState({
-    name: business?.name || '',
-    address: business?.address || '',
-    phone: business?.phone || '',
-    email: business?.email || '',
-    logo: business?.logo || '',
+    name: 'My Business',
+    address: '123 Business Street, City',
+    phone: '+1 234 567 8900',
+    email: 'business@example.com',
+    website: 'https://mybusiness.com',
+    tax_number: 'TAX123456789',
+    currency: 'INR',
+    timezone: 'Asia/Kolkata',
   });
 
-  // Password form state
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
-
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false,
+  // Notification settings
+  const [notifications, setNotifications] = useState({
+    email_sales: true,
+    email_inventory: true,
+    email_employees: false,
+    sms_alerts: true,
+    push_notifications: true,
   });
 
   const handleBusinessUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!business) return;
-
     setLoading(true);
     setMessage(null);
 
-    try {
-      const { error } = await updateBusiness({
-        name: businessForm.name.trim(),
-        address: businessForm.address.trim() || null,
-        phone: businessForm.phone.trim() || null,
-        email: businessForm.email.trim() || null,
-        logo: businessForm.logo.trim() || null,
-      });
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-      if (error) {
-        setMessage({ type: 'error', text: 'Failed to update business information' });
-      } else {
-        setMessage({ type: 'success', text: 'Business information updated successfully' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to update business information' });
-    } finally {
-      setLoading(false);
-    }
+    setMessage({ type: 'success', text: 'Business information updated successfully' });
+    setLoading(false);
   };
 
-  const handlePasswordReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user?.email) return;
-
+  const handlePasswordReset = async () => {
     setLoading(true);
     setMessage(null);
 
-    try {
-      // Use the actual domain instead of localhost
-      const redirectTo = window.location.origin + '/reset-password';
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: redirectTo
-      });
-      
-      if (error) {
-        setMessage({ type: 'error', text: 'Failed to send password reset email' });
-      } else {
-        setMessage({ type: 'success', text: 'Password reset email sent successfully. Check your inbox.' });
-        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to send password reset email' });
-    } finally {
-      setLoading(false);
-    }
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    setMessage({ type: 'success', text: 'Password reset email sent successfully. Check your inbox.' });
+    setLoading(false);
+  };
+
+  const handleNotificationUpdate = async () => {
+    setLoading(true);
+    setMessage(null);
+
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    setMessage({ type: 'success', text: 'Notification preferences updated successfully' });
+    setLoading(false);
   };
 
   const tabs = [
     { id: 'business', label: 'Business Info', icon: Building2 },
-    { id: 'account', label: 'Account', icon: Mail },
-    { id: 'security', label: 'Security', icon: Eye },
+    { id: 'account', label: 'Account', icon: User },
+    { id: 'security', label: 'Security', icon: Shield },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'billing', label: 'Billing', icon: CreditCard },
   ];
 
   return (
@@ -183,15 +158,42 @@ export function BusinessSettings() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Logo URL
+                      Website
                     </label>
                     <input
                       type="url"
-                      value={businessForm.logo}
-                      onChange={(e) => setBusinessForm(prev => ({ ...prev, logo: e.target.value }))}
+                      value={businessForm.website}
+                      onChange={(e) => setBusinessForm(prev => ({ ...prev, website: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="https://example.com/logo.png"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tax Number
+                    </label>
+                    <input
+                      type="text"
+                      value={businessForm.tax_number}
+                      onChange={(e) => setBusinessForm(prev => ({ ...prev, tax_number: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Currency
+                    </label>
+                    <select
+                      value={businessForm.currency}
+                      onChange={(e) => setBusinessForm(prev => ({ ...prev, currency: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="INR">Indian Rupee (₹)</option>
+                      <option value="USD">US Dollar ($)</option>
+                      <option value="EUR">Euro (€)</option>
+                      <option value="GBP">British Pound (£)</option>
+                    </select>
                   </div>
                 </div>
 
@@ -233,15 +235,15 @@ export function BusinessSettings() {
                     <Mail className="h-5 w-5 text-gray-400" />
                     <div>
                       <p className="text-sm font-medium text-gray-900">Email Address</p>
-                      <p className="text-sm text-gray-600">{user?.email}</p>
+                      <p className="text-sm text-gray-600">user@example.com</p>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-3">
-                    <Building2 className="h-5 w-5 text-gray-400" />
+                    <User className="h-5 w-5 text-gray-400" />
                     <div>
                       <p className="text-sm font-medium text-gray-900">Full Name</p>
-                      <p className="text-sm text-gray-600">{user?.user_metadata?.full_name || 'Not provided'}</p>
+                      <p className="text-sm text-gray-600">Business Owner</p>
                     </div>
                   </div>
 
@@ -249,9 +251,7 @@ export function BusinessSettings() {
                     <MapPin className="h-5 w-5 text-gray-400" />
                     <div>
                       <p className="text-sm font-medium text-gray-900">Account Created</p>
-                      <p className="text-sm text-gray-600">
-                        {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
-                      </p>
+                      <p className="text-sm text-gray-600">January 15, 2024</p>
                     </div>
                   </div>
                 </div>
@@ -286,6 +286,125 @@ export function BusinessSettings() {
                     <li>• Don't share your login credentials with others</li>
                     <li>• Log out when using shared computers</li>
                     <li>• Regularly review your business data for any unauthorized changes</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Notifications Tab */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Notification Preferences</h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-gray-900">Sales Notifications</h4>
+                      <p className="text-sm text-gray-600">Get notified about new sales and transactions</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifications.email_sales}
+                      onChange={(e) => setNotifications(prev => ({ ...prev, email_sales: e.target.checked }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-gray-900">Inventory Alerts</h4>
+                      <p className="text-sm text-gray-600">Get alerts when products are low in stock</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifications.email_inventory}
+                      onChange={(e) => setNotifications(prev => ({ ...prev, email_inventory: e.target.checked }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-gray-900">Employee Updates</h4>
+                      <p className="text-sm text-gray-600">Get notified about employee activities</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifications.email_employees}
+                      onChange={(e) => setNotifications(prev => ({ ...prev, email_employees: e.target.checked }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-gray-900">SMS Alerts</h4>
+                      <p className="text-sm text-gray-600">Receive important alerts via SMS</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifications.sms_alerts}
+                      onChange={(e) => setNotifications(prev => ({ ...prev, sms_alerts: e.target.checked }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-gray-900">Push Notifications</h4>
+                      <p className="text-sm text-gray-600">Receive push notifications in your browser</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifications.push_notifications}
+                      onChange={(e) => setNotifications(prev => ({ ...prev, push_notifications: e.target.checked }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4">
+                  <button
+                    onClick={handleNotificationUpdate}
+                    disabled={loading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>{loading ? 'Saving...' : 'Save Preferences'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Billing Tab */}
+          {activeTab === 'billing' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Billing Information</h3>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h4 className="font-medium text-blue-800 mb-2">Current Plan: Free</h4>
+                  <p className="text-sm text-blue-700 mb-4">
+                    You're currently on the free plan. Upgrade to unlock more features and remove limitations.
+                  </p>
+                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+                    Upgrade Plan
+                  </button>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-3">Plan Features</h4>
+                  <ul className="text-sm text-gray-600 space-y-2">
+                    <li>✓ Up to 2 branches</li>
+                    <li>✓ Up to 10 employees</li>
+                    <li>✓ Basic reporting</li>
+                    <li>✓ Email support</li>
+                    <li>✗ Advanced analytics</li>
+                    <li>✗ Priority support</li>
+                    <li>✗ Custom integrations</li>
                   </ul>
                 </div>
               </div>

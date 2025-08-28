@@ -4,6 +4,12 @@ import { AuthForm } from './components/Auth/AuthForm';
 import { Sidebar } from './components/Layout/Sidebar';
 import { Header } from './components/Layout/Header';
 import { DashboardOverview } from './components/Dashboard/DashboardOverview';
+import { BranchManagement } from './components/Branches/BranchManagement';
+import { POSSystem } from './components/POS/POSSystem';
+import { InventoryManagement } from './components/Inventory/InventoryManagement';
+import { EmployeeManagement } from './components/Employees/EmployeeManagement';
+import { ReportsAnalytics } from './components/Reports/ReportsAnalytics';
+import { BusinessSettings } from './components/Settings/BusinessSettings';
 import { useAuth } from './hooks/useAuth';
 import { useBusiness } from './hooks/useBusiness';
 import toast from 'react-hot-toast';
@@ -68,47 +74,17 @@ function App() {
       case 'dashboard':
         return <DashboardOverview />;
       case 'branches':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Branches</h2>
-            <p className="text-gray-600">Branch management coming soon!</p>
-          </div>
-        );
+        return <BranchManagement />;
       case 'pos':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Point of Sale</h2>
-            <p className="text-gray-600">POS system coming soon!</p>
-          </div>
-        );
+        return <POSSystem />;
       case 'inventory':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Inventory</h2>
-            <p className="text-gray-600">Inventory management coming soon!</p>
-          </div>
-        );
+        return <InventoryManagement />;
       case 'employees':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Employees</h2>
-            <p className="text-gray-600">Employee management coming soon!</p>
-          </div>
-        );
+        return <EmployeeManagement />;
       case 'reports':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Reports</h2>
-            <p className="text-gray-600">Reports and analytics coming soon!</p>
-          </div>
-        );
+        return <ReportsAnalytics />;
       case 'settings':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Settings</h2>
-            <p className="text-gray-600">Settings coming soon!</p>
-          </div>
-        );
+        return <BusinessSettings />;
       default:
         return <DashboardOverview />;
     }

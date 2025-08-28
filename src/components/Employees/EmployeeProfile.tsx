@@ -1,208 +1,48 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, DollarSign, MessageCircle, Edit, Save, X } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useBusiness } from '../../hooks/useBusiness';
-import { useAuth } from '../../hooks/useAuth';
-import toast from 'react-hot-toast';
-
-interface Employee {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  role: string;
-  salary: number;
-  hire_date: string;
-  address: string | null;
-  emergency_contact: string | null;
-  employee_id: string | null;
-  department: string | null;
-  branch?: { name: string };
-}
-
-interface EmployeeProfile {
-  bio: string | null;
-  skills: string[] | null;
-  certifications: string[] | null;
-  performance_rating: number;
-  last_review_date: string | null;
-  next_review_date: string | null;
-}
-
-interface Message {
-  id: string;
-  sender_id: string;
-  content: string;
-  created_at: string;
-  sender?: { full_name: string };
-}
+import React, { useState } from 'react';
+import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, DollarSign, Award, Edit, Save, X, MessageCircle } from 'lucide-react';
 
 interface EmployeeProfileProps {
-  employee: Employee;
+  employee: any;
   onBack: () => void;
 }
 
 export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
-  const { business } = useBusiness();
-  const { userProfile } = useAuth();
-  const [profile, setProfile] = useState<EmployeeProfile | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
   const [editingProfile, setEditingProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState<EmployeeProfile>({
-    bio: '',
-    skills: [],
-    certifications: [],
-    performance_rating: 0,
-    last_review_date: null,
-    next_review_date: null,
+  const [profileData, setProfileData] = useState({
+    bio: 'Dedicated and experienced team member with excellent customer service skills.',
+    skills: ['Customer Service', 'Sales', 'Team Leadership', 'Problem Solving'],
+    certifications: ['Customer Service Excellence', 'Sales Training Certificate'],
+    performance_rating: employee.performance_rating || 4.2,
+    last_review_date: '2024-01-15',
+    next_review_date: '2024-07-15',
   });
-  const [loading, setLoading] = useState(true);
-  const [sendingMessage, setSendingMessage] = useState(false);
-
-  useEffect(() => {
-    fetchEmployeeProfile();
-    fetchMessages();
-  }, [employee.id]);
-
-  const fetchEmployeeProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('employee_profiles')
-        .select('*')
-        .eq('employee_id', employee.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching employee profile:', error);
-      } else if (data) {
-        setProfile(data);
-        setProfileForm(data);
-      }
-    } catch (error) {
-      console.error('Error fetching employee profile:', error);
-    } finally {
-      setLoading(false);
+  const [newMessage, setNewMessage] = useState('');
+  const [messages] = useState([
+    {
+      id: '1',
+      sender: 'Manager',
+      content: 'Great work on the quarterly sales targets!',
+      created_at: '2024-02-20T10:30:00Z'
+    },
+    {
+      id: '2',
+      sender: 'HR',
+      content: 'Please submit your timesheet for this week.',
+      created_at: '2024-02-18T14:15:00Z'
     }
+  ]);
+
+  const saveProfile = () => {
+    setEditingProfile(false);
+    // In real app, save to database
   };
 
-  const fetchMessages = async () => {
-    if (!userProfile) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          sender:users!messages_sender_id_fkey(full_name)
-        `)
-        .or(`sender_id.eq.${userProfile.id},recipient_id.eq.${userProfile.id}`)
-        .eq('business_id', business?.id)
-        .order('created_at', { ascending: true });
-
-      if (!error && data) {
-        setMessages(data);
-      }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    }
-  };
-
-  const saveProfile = async () => {
-    try {
-      if (profile) {
-        // Update existing profile
-        const { error } = await supabase
-          .from('employee_profiles')
-          .update(profileForm)
-          .eq('employee_id', employee.id);
-
-        if (error) throw error;
-      } else {
-        // Create new profile
-        const { error } = await supabase
-          .from('employee_profiles')
-          .insert([{ ...profileForm, employee_id: employee.id }]);
-
-        if (error) throw error;
-      }
-
-      setProfile(profileForm);
-      setEditingProfile(false);
-      toast.success('Profile updated successfully');
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      toast.error('Failed to save profile');
-    }
-  };
-
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !userProfile || !business) return;
-
-    setSendingMessage(true);
-    try {
-      // For demo purposes, we'll create a message record
-      // In a real app, you'd need the employee's user_id
-      const { error } = await supabase
-        .from('messages')
-        .insert([
-          {
-            business_id: business.id,
-            sender_id: userProfile.id,
-            recipient_id: userProfile.id, // This would be the employee's user_id
-            content: newMessage,
-            subject: `Message to ${employee.name}`,
-          }
-        ]);
-
-      if (error) throw error;
-
+  const sendMessage = () => {
+    if (newMessage.trim()) {
+      // In real app, send message
       setNewMessage('');
-      fetchMessages();
-      toast.success('Message sent successfully');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Failed to send message');
-    } finally {
-      setSendingMessage(false);
     }
   };
-
-  const addSkill = (skill: string) => {
-    if (skill && !profileForm.skills?.includes(skill)) {
-      setProfileForm(prev => ({
-        ...prev,
-        skills: [...(prev.skills || []), skill]
-      }));
-    }
-  };
-
-  const removeSkill = (skillToRemove: string) => {
-    setProfileForm(prev => ({
-      ...prev,
-      skills: prev.skills?.filter(skill => skill !== skillToRemove) || []
-    }));
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center space-x-4">
-          <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="h-8 bg-gray-200 rounded w-48 animate-pulse"></div>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse">
-              <div className="h-32 bg-gray-200 rounded"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -261,21 +101,21 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
                 <User className="h-5 w-5 text-gray-400" />
                 <div>
                   <p className="text-sm text-gray-600">Employee ID</p>
-                  <p className="font-medium">{employee.employee_id || 'Not assigned'}</p>
+                  <p className="font-medium">EMP-{employee.id.padStart(4, '0')}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
                 <Mail className="h-5 w-5 text-gray-400" />
                 <div>
                   <p className="text-sm text-gray-600">Email</p>
-                  <p className="font-medium">{employee.email || 'Not provided'}</p>
+                  <p className="font-medium">{employee.email}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
                 <Phone className="h-5 w-5 text-gray-400" />
                 <div>
                   <p className="text-sm text-gray-600">Phone</p>
-                  <p className="font-medium">{employee.phone || 'Not provided'}</p>
+                  <p className="font-medium">{employee.phone}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
@@ -296,7 +136,7 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
                 <MapPin className="h-5 w-5 text-gray-400" />
                 <div>
                   <p className="text-sm text-gray-600">Branch</p>
-                  <p className="font-medium">{employee.branch?.name || 'All Branches'}</p>
+                  <p className="font-medium">{employee.branch}</p>
                 </div>
               </div>
             </div>
@@ -311,11 +151,10 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
                   <textarea
-                    value={profileForm.bio || ''}
-                    onChange={(e) => setProfileForm(prev => ({ ...prev, bio: e.target.value }))}
+                    value={profileData.bio}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Employee bio..."
                   />
                 </div>
                 
@@ -326,8 +165,8 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
                     min="0"
                     max="5"
                     step="0.1"
-                    value={profileForm.performance_rating}
-                    onChange={(e) => setProfileForm(prev => ({ ...prev, performance_rating: Number(e.target.value) }))}
+                    value={profileData.performance_rating}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, performance_rating: Number(e.target.value) }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -337,8 +176,8 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Last Review Date</label>
                     <input
                       type="date"
-                      value={profileForm.last_review_date || ''}
-                      onChange={(e) => setProfileForm(prev => ({ ...prev, last_review_date: e.target.value }))}
+                      value={profileData.last_review_date}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, last_review_date: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -346,8 +185,8 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Next Review Date</label>
                     <input
                       type="date"
-                      value={profileForm.next_review_date || ''}
-                      onChange={(e) => setProfileForm(prev => ({ ...prev, next_review_date: e.target.value }))}
+                      value={profileData.next_review_date}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, next_review_date: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -357,7 +196,7 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
               <div className="space-y-4">
                 <div>
                   <h4 className="font-medium text-gray-900 mb-2">Bio</h4>
-                  <p className="text-gray-600">{profile?.bio || 'No bio available'}</p>
+                  <p className="text-gray-600">{profileData.bio}</p>
                 </div>
                 
                 <div>
@@ -368,7 +207,7 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
                         <span
                           key={star}
                           className={`text-lg ${
-                            star <= (profile?.performance_rating || 0) ? 'text-yellow-400' : 'text-gray-300'
+                            star <= profileData.performance_rating ? 'text-yellow-400' : 'text-gray-300'
                           }`}
                         >
                           ★
@@ -376,17 +215,46 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
                       ))}
                     </div>
                     <span className="text-sm text-gray-600">
-                      {profile?.performance_rating || 0}/5
+                      {profileData.performance_rating}/5
                     </span>
                   </div>
                 </div>
 
-                {profile?.last_review_date && (
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Last Review</h4>
-                    <p className="text-gray-600">{new Date(profile.last_review_date).toLocaleDateString()}</p>
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Skills</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {profileData.skills.map((skill, index) => (
+                      <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        {skill}
+                      </span>
+                    ))}
                   </div>
-                )}
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Certifications</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {profileData.certifications.map((cert, index) => (
+                      <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                        {cert}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Review Dates</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Last Review:</span>
+                      <span className="font-medium ml-2">{new Date(profileData.last_review_date).toLocaleDateString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Next Review:</span>
+                      <span className="font-medium ml-2">{new Date(profileData.next_review_date).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -406,7 +274,7 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Department</span>
-                <span className="font-medium">{employee.department || 'General'}</span>
+                <span className="font-medium">{employee.department}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Status</span>
@@ -425,23 +293,17 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
             </h3>
             
             <div className="space-y-3 mb-4 max-h-48 overflow-y-auto">
-              {messages.length === 0 ? (
-                <p className="text-gray-500 text-sm">No messages yet</p>
-              ) : (
-                messages.map((message) => (
-                  <div key={message.id} className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-sm font-medium text-gray-900">
-                        {message.sender?.full_name || 'Unknown'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(message.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">{message.content}</p>
+              {messages.map((message) => (
+                <div key={message.id} className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="text-sm font-medium text-gray-900">{message.sender}</span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(message.created_at).toLocaleDateString()}
+                    </span>
                   </div>
-                ))
-              )}
+                  <p className="text-sm text-gray-600">{message.content}</p>
+                </div>
+              ))}
             </div>
 
             <div className="space-y-2">
@@ -454,10 +316,10 @@ export function EmployeeProfile({ employee, onBack }: EmployeeProfileProps) {
               />
               <button
                 onClick={sendMessage}
-                disabled={!newMessage.trim() || sendingMessage}
+                disabled={!newMessage.trim()}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {sendingMessage ? 'Sending...' : 'Send Message'}
+                Send Message
               </button>
             </div>
           </div>

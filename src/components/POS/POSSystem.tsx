@@ -1,27 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Smartphone, Banknote, Search, X, FileText, Printer } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useBusiness } from '../../hooks/useBusiness';
-import { generateReceiptPDF } from '../Reports/PDFGenerator';
-import toast from 'react-hot-toast';
 
 interface Product {
   id: string;
   name: string;
   price: number;
-  stock_quantity: number;
-  category: string | null;
-  sku: string | null;
-}
-
-interface Branch {
-  id: string;
-  name: string;
-}
-
-interface Employee {
-  id: string;
-  name: string;
+  stock: number;
+  category: string;
+  image?: string;
 }
 
 interface CartItem {
@@ -31,82 +17,43 @@ interface CartItem {
 }
 
 export function POSSystem() {
-  const { business } = useBusiness();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [selectedBranch, setSelectedBranch] = useState<string>('');
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('');
+  const [products] = useState<Product[]>([
+    { id: '1', name: 'Laptop Dell XPS 13', price: 85000, stock: 15, category: 'Electronics' },
+    { id: '2', name: 'iPhone 15 Pro', price: 134900, stock: 8, category: 'Electronics' },
+    { id: '3', name: 'Samsung Galaxy S24', price: 79999, stock: 12, category: 'Electronics' },
+    { id: '4', name: 'MacBook Air M2', price: 114900, stock: 6, category: 'Electronics' },
+    { id: '5', name: 'iPad Pro 12.9"', price: 112900, stock: 10, category: 'Electronics' },
+    { id: '6', name: 'AirPods Pro', price: 24900, stock: 25, category: 'Electronics' },
+    { id: '7', name: 'Nike Air Max', price: 8999, stock: 30, category: 'Footwear' },
+    { id: '8', name: 'Adidas Ultraboost', price: 12999, stock: 20, category: 'Footwear' },
+    { id: '9', name: 'Coffee Beans 1kg', price: 899, stock: 50, category: 'Food' },
+    { id: '10', name: 'Green Tea Pack', price: 299, stock: 100, category: 'Food' },
+  ]);
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi'>('cash');
   const [discount, setDiscount] = useState(0);
   const [tax, setTax] = useState(18);
-  const [loading, setLoading] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
 
-  useEffect(() => {
-    if (business) {
-      fetchBranches();
-      fetchEmployees();
-    }
-  }, [business]);
+  const categories = [...new Set(products.map(p => p.category))];
 
-  useEffect(() => {
-    if (selectedBranch) {
-      fetchProducts();
-    }
-  }, [selectedBranch]);
-
-  const fetchBranches = async () => {
-    if (!business) return;
-
-    const { data } = await supabase
-      .from('branches')
-      .select('id, name')
-      .eq('business_id', business.id)
-      .eq('is_active', true);
-
-    setBranches(data || []);
-    if (data && data.length > 0) {
-      setSelectedBranch(data[0].id);
-    }
-  };
-
-  const fetchEmployees = async () => {
-    if (!business) return;
-
-    const { data } = await supabase
-      .from('employees')
-      .select('id, name')
-      .eq('business_id', business.id)
-      .eq('is_active', true);
-
-    setEmployees(data || []);
-  };
-
-  const fetchProducts = async () => {
-    if (!business || !selectedBranch) return;
-
-    const { data } = await supabase
-      .from('products')
-      .select('id, name, price, stock_quantity, category, sku')
-      .eq('business_id', business.id)
-      .or(`branch_id.eq.${selectedBranch},branch_id.is.null`)
-      .eq('is_active', true)
-      .gt('stock_quantity', 0);
-
-    setProducts(data || []);
-  };
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = !selectedCategory || product.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   const addToCart = (product: Product) => {
     const existingItem = cart.find(item => item.product.id === product.id);
     
     if (existingItem) {
-      if (existingItem.quantity < product.stock_quantity) {
+      if (existingItem.quantity < product.stock) {
         setCart(cart.map(item =>
           item.product.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
@@ -125,7 +72,7 @@ export function POSSystem() {
     }
 
     const product = products.find(p => p.id === productId);
-    if (product && quantity <= product.stock_quantity) {
+    if (product && quantity <= product.stock) {
       setCart(cart.map(item =>
         item.product.id === productId
           ? { ...item, quantity }
@@ -169,109 +116,32 @@ export function POSSystem() {
     return afterDiscount + taxAmount;
   };
 
-  const processSale = async () => {
-    if (cart.length === 0 || !selectedBranch) return;
+  const processSale = () => {
+    if (cart.length === 0) return;
 
-    setLoading(true);
+    const subtotal = calculateSubtotal();
+    const globalDiscount = (subtotal * discount) / 100;
+    const afterDiscount = subtotal - globalDiscount;
+    const taxAmount = (afterDiscount * tax) / 100;
+    const total = afterDiscount + taxAmount;
 
-    try {
-      const subtotal = calculateSubtotal();
-      const globalDiscount = (subtotal * discount) / 100;
-      const afterDiscount = subtotal - globalDiscount;
-      const taxAmount = (afterDiscount * tax) / 100;
-      const total = afterDiscount + taxAmount;
+    const saleData = {
+      id: Date.now().toString(),
+      items: cart,
+      subtotal,
+      discount_amount: globalDiscount,
+      tax_amount: taxAmount,
+      total_amount: total,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      payment_method: paymentMethod,
+      created_at: new Date().toISOString(),
+    };
 
-      // Create sale record
-      const { data: saleData, error: saleError } = await supabase
-        .from('sales')
-        .insert([
-          {
-            business_id: business!.id,
-            branch_id: selectedBranch,
-            employee_id: selectedEmployee || null,
-            customer_name: customerName || null,
-            customer_phone: customerPhone || null,
-            subtotal,
-            tax_amount: taxAmount,
-            discount_amount: globalDiscount,
-            total_amount: total,
-            payment_method: paymentMethod,
-            payment_status: 'completed',
-          }
-        ])
-        .select()
-        .single();
-
-      if (saleError) throw saleError;
-
-      // Create sale items
-      const saleItems = cart.map(item => ({
-        sale_id: saleData.id,
-        product_id: item.product.id,
-        quantity: item.quantity,
-        unit_price: item.product.price,
-        discount_amount: (item.product.price * item.quantity * item.discount) / 100,
-        total_price: (item.product.price * item.quantity) - ((item.product.price * item.quantity * item.discount) / 100),
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('sale_items')
-        .insert(saleItems);
-
-      if (itemsError) throw itemsError;
-
-      // Update product stock
-      for (const item of cart) {
-        await supabase
-          .from('products')
-          .update({
-            stock_quantity: item.product.stock_quantity - item.quantity
-          })
-          .eq('id', item.product.id);
-      }
-
-      setLastSale({
-        ...saleData,
-        items: cart.map(item => ({
-          ...item,
-          total_price: (item.product.price * item.quantity) - ((item.product.price * item.quantity * item.discount) / 100)
-        })),
-        tax_amount: taxAmount,
-        discount_amount: globalDiscount,
-      });
-
-      setShowReceipt(true);
-      clearCart();
-      fetchProducts(); // Refresh products to show updated stock
-      toast.success('Sale completed successfully!');
-
-    } catch (error) {
-      console.error('Error processing sale:', error);
-      toast.error('Failed to process sale');
-    } finally {
-      setLoading(false);
-    }
+    setLastSale(saleData);
+    setShowReceipt(true);
+    clearCart();
   };
-
-  const printReceipt = () => {
-    window.print();
-  };
-
-  const downloadReceiptPDF = async () => {
-    if (!lastSale) return;
-    
-    try {
-      await generateReceiptPDF(lastSale, business);
-      toast.success('Receipt PDF downloaded successfully!');
-    } catch (error) {
-      toast.error('Failed to generate receipt PDF');
-    }
-  };
-
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
 
   const paymentIcons = {
     cash: Banknote,
@@ -284,39 +154,30 @@ export function POSSystem() {
       {/* Products Section */}
       <div className="flex-1 p-6 bg-gray-50">
         <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Point of Sale</h2>
+          
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
             <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">Select Branch</option>
-              {branches.map(branch => (
-                <option key={branch.id} value={branch.id}>{branch.name}</option>
+              <option value="">All Categories</option>
+              {categories.map(category => (
+                <option key={category} value={category}>{category}</option>
               ))}
             </select>
-
-            <select
-              value={selectedEmployee}
-              onChange={(e) => setSelectedEmployee(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Select Employee (Optional)</option>
-              {employees.map(employee => (
-                <option key={employee.id} value={employee.id}>{employee.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
           </div>
         </div>
 
@@ -327,19 +188,17 @@ export function POSSystem() {
               onClick={() => addToCart(product)}
               className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
             >
-              <h3 className="font-semibold text-gray-900 mb-1">{product.name}</h3>
-              {product.sku && (
-                <p className="text-xs text-gray-500 mb-2">SKU: {product.sku}</p>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-bold text-blue-600">₹{product.price}</span>
-                <span className="text-sm text-gray-500">Stock: {product.stock_quantity}</span>
+              <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+                <span className="text-gray-400 text-sm">No Image</span>
               </div>
-              {product.category && (
-                <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                  {product.category}
-                </span>
-              )}
+              <h3 className="font-semibold text-gray-900 mb-1 truncate">{product.name}</h3>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-lg font-bold text-blue-600">₹{product.price.toLocaleString()}</span>
+                <span className="text-sm text-gray-500">Stock: {product.stock}</span>
+              </div>
+              <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                {product.category}
+              </span>
             </div>
           ))}
         </div>
@@ -365,7 +224,7 @@ export function POSSystem() {
               {cart.map(item => (
                 <div key={item.product.id} className="bg-gray-50 rounded-lg p-3">
                   <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-medium text-gray-900">{item.product.name}</h4>
+                    <h4 className="font-medium text-gray-900 text-sm">{item.product.name}</h4>
                     <button
                       onClick={() => removeFromCart(item.product.id)}
                       className="text-red-500 hover:text-red-700"
@@ -382,7 +241,7 @@ export function POSSystem() {
                       >
                         <Minus className="h-3 w-3" />
                       </button>
-                      <span className="w-8 text-center">{item.quantity}</span>
+                      <span className="w-8 text-center text-sm">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                         className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300"
@@ -390,7 +249,7 @@ export function POSSystem() {
                         <Plus className="h-3 w-3" />
                       </button>
                     </div>
-                    <span className="font-semibold">₹{item.product.price * item.quantity}</span>
+                    <span className="font-semibold text-sm">₹{(item.product.price * item.quantity).toLocaleString()}</span>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -483,21 +342,21 @@ export function POSSystem() {
             <div className="space-y-2 pt-2 border-t border-gray-200">
               <div className="flex justify-between text-sm">
                 <span>Subtotal:</span>
-                <span>₹{calculateSubtotal().toFixed(2)}</span>
+                <span>₹{calculateSubtotal().toLocaleString()}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-sm text-red-600">
                   <span>Discount ({discount}%):</span>
-                  <span>-₹{((calculateSubtotal() * discount) / 100).toFixed(2)}</span>
+                  <span>-₹{((calculateSubtotal() * discount) / 100).toLocaleString()}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm">
                 <span>Tax ({tax}%):</span>
-                <span>₹{(((calculateSubtotal() - (calculateSubtotal() * discount) / 100) * tax) / 100).toFixed(2)}</span>
+                <span>₹{(((calculateSubtotal() - (calculateSubtotal() * discount) / 100) * tax) / 100).toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-lg font-bold">
                 <span>Total:</span>
-                <span>₹{calculateTotal().toFixed(2)}</span>
+                <span>₹{calculateTotal().toLocaleString()}</span>
               </div>
             </div>
 
@@ -511,10 +370,9 @@ export function POSSystem() {
               </button>
               <button
                 onClick={processSale}
-                disabled={loading || !selectedBranch}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
               >
-                {loading ? 'Processing...' : 'Complete Sale'}
+                Complete Sale
               </button>
             </div>
           </div>
@@ -537,7 +395,7 @@ export function POSSystem() {
 
             <div className="space-y-4 text-sm">
               <div className="text-center border-b pb-4">
-                <h3 className="font-bold text-lg">{business?.name}</h3>
+                <h3 className="font-bold text-lg">Your Business Name</h3>
                 <p className="text-gray-600">Sale Receipt</p>
                 <p className="text-gray-500">#{lastSale.id.slice(-8)}</p>
                 <p className="text-gray-500">{new Date(lastSale.created_at).toLocaleString()}</p>
@@ -557,9 +415,9 @@ export function POSSystem() {
                   <div key={index} className="flex justify-between">
                     <div>
                       <p className="font-medium">{item.product.name}</p>
-                      <p className="text-gray-500">{item.quantity} × ₹{item.product.price}</p>
+                      <p className="text-gray-500">{item.quantity} × ₹{item.product.price.toLocaleString()}</p>
                     </div>
-                    <p>₹{item.total_price.toFixed(2)}</p>
+                    <p>₹{(item.product.price * item.quantity).toLocaleString()}</p>
                   </div>
                 ))}
               </div>
@@ -567,21 +425,21 @@ export function POSSystem() {
               <div className="border-t pt-4 space-y-1">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>₹{lastSale.subtotal.toFixed(2)}</span>
+                  <span>₹{lastSale.subtotal.toLocaleString()}</span>
                 </div>
                 {lastSale.discount_amount > 0 && (
                   <div className="flex justify-between text-red-600">
                     <span>Discount:</span>
-                    <span>-₹{lastSale.discount_amount.toFixed(2)}</span>
+                    <span>-₹{lastSale.discount_amount.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span>Tax:</span>
-                  <span>₹{lastSale.tax_amount.toFixed(2)}</span>
+                  <span>₹{lastSale.tax_amount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t pt-2">
                   <span>Total:</span>
-                  <span>₹{lastSale.total_amount.toFixed(2)}</span>
+                  <span>₹{lastSale.total_amount.toLocaleString()}</span>
                 </div>
               </div>
 
@@ -593,18 +451,11 @@ export function POSSystem() {
 
             <div className="flex space-x-2 mt-6">
               <button
-                onClick={printReceipt}
+                onClick={() => window.print()}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
               >
                 <Printer className="h-4 w-4 mr-2 inline" />
                 Print
-              </button>
-              <button
-                onClick={downloadReceiptPDF}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-              >
-                <FileText className="h-4 w-4 mr-2 inline" />
-                PDF
               </button>
               <button
                 onClick={() => setShowReceipt(false)}
